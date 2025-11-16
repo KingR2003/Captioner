@@ -1,5 +1,4 @@
-import { writeFile, mkdir } from "node:fs/promises";
-import path from "path";
+import { put } from "@vercel/blob";
 
 export async function POST(req: Request) {
   try {
@@ -10,22 +9,26 @@ export async function POST(req: Request) {
       return Response.json({ error: "No file provided" }, { status: 400 });
     }
 
-    const bytes = Buffer.from(await file.arrayBuffer());
+    const bytes = await file.arrayBuffer();
+    const safeName = file.name.replace(/[^a-z0-9._-]/gi, "_");
+    const timestamp = Date.now();
+    const blobName = `uploads/${timestamp}-${safeName}`;
 
-    // Save uploads to public/uploads so they are served by Next.js as static files
-    const uploadsDir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(uploadsDir, { recursive: true });
-
-    const safeName = path.basename((file as any).name || "upload.mp4");
-    const filePath = path.join(uploadsDir, safeName);
-
-    await writeFile(filePath, bytes);
+    // Upload to Vercel Blob Storage
+    const blob = await put(blobName, bytes, {
+      access: "public",
+      contentType: file.type,
+    });
 
     return Response.json({
       success: true,
-      path: `/uploads/${safeName}`,
+      path: blob.url,
     });
   } catch (err: any) {
-    return Response.json({ error: err.message }, { status: 500 });
+    console.error("Upload error:", err);
+    return Response.json(
+      { error: err.message || "Upload failed" },
+      { status: 500 }
+    );
   }
 }
