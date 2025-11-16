@@ -1,13 +1,14 @@
 "use client";
+export const dynamic = "force-dynamic";
 
+import { Suspense } from "react";
 import { Player } from "@remotion/player";
 import { useSearchParams } from "next/navigation";
 import { CaptionVideo } from "@/remotion/CaptionVideo";
 import { useEffect, useState } from "react";
 
-export default function PreviewPage() {
+function PreviewContent() {
   const params = useSearchParams();
-
   const videoSrc = params.get("video");
   const captionsParam = params.get("captions");
   const preset =
@@ -15,7 +16,6 @@ export default function PreviewPage() {
 
   const [durationSeconds, setDurationSeconds] = useState<number | null>(null);
 
-  // Ensure this is only run on the client and does not import any server-only helpers.
   useEffect(() => {
     if (!videoSrc) return;
 
@@ -25,15 +25,13 @@ export default function PreviewPage() {
 
     const onLoaded = () => {
       setDurationSeconds(vid.duration || 0);
-      // clean up
       vid.removeEventListener("loadedmetadata", onLoaded);
     };
 
     vid.addEventListener("loadedmetadata", onLoaded);
 
-    // In case it errors
     const onError = () => {
-      setDurationSeconds(30); // fallback
+      setDurationSeconds(30);
       vid.removeEventListener("error", onError);
     };
     vid.addEventListener("error", onError);
@@ -131,5 +129,13 @@ export default function PreviewPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function PreviewPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40 }}>Loading preview...</div>}>
+      <PreviewContent />
+    </Suspense>
   );
 }
